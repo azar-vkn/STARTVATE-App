@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark-mode overrides so the native shell matches the web layer. -->
+    <color name="colorPrimary">#E28A66</color>
+    <color name="colorPrimaryDark">#1B1A18</color>
+    <color name="colorAccent">#E28A66</color>
+
+    <color name="appBackground">#1B1A18</color>
+</resources>

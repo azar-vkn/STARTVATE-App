@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build-output/
+android/app/build/
+android/build/
+android/.gradle/
+android/captures/
+android/app/src/main/assets/public/
+android/app/src/main/assets/capacitor.config.json
+android/app/src/main/assets/capacitor.plugins.json
+
+# Local machine config — paths differ per developer
+android/local.properties
+
+# SIGNING SECRETS — never commit these.
+# Losing the keystore means you can never update the app on Play Store,
+# so back it up somewhere safe and private.
+android/keystore.properties
+*.keystore
+*.jks
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.idea/
+*.iml
+.vscode/
+
+# Logs
+npm-debug.log*
+yarn-error.log*

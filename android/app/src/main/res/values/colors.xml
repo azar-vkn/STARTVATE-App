@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- STARTVATE brand palette (Claude coral on warm cream). -->
+    <color name="colorPrimary">#D9714E</color>
+    <color name="colorPrimaryDark">#C25C3A</color>
+    <color name="colorAccent">#D9714E</color>
+
+    <!-- App window background — matches the web layer's light theme. -->
+    <color name="appBackground">#F7F5F0</color>
+</resources>
