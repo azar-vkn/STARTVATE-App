@@ -59,6 +59,7 @@ export function ResultsScreen() {
             />
           ) : (
             <>
+              {result.degraded && <DegradedBanner message={result.degraded.message} />}
               <AIInsightPanel insight={result.insight} />
               <div className="px-4 pb-1 pt-5">
                 <p className="text-sm font-bold text-ink">
@@ -83,6 +84,19 @@ export function ResultsScreen() {
           )}
         </>
       )}
+    </div>
+  );
+}
+
+/**
+ * Shown when results aren't fully live, so curated examples are never
+ * presented as real ecosystem data.
+ */
+function DegradedBanner({ message }: { message: string }) {
+  return (
+    <div className="mx-4 mt-4 flex items-start gap-2.5 rounded-2xl border border-amber/30 bg-amber/10 px-3.5 py-3">
+      <span className="text-sm">ℹ️</span>
+      <p className="text-[12.5px] leading-relaxed text-ink-muted">{message}</p>
     </div>
   );
 }

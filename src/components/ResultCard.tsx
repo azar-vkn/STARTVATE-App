@@ -52,17 +52,34 @@ export function ResultCard({ item, meta }: Props) {
         </div>
       )}
 
-      <div className="flex items-center justify-between">
-        {item.location ? (
-          <span className="flex items-center gap-1 text-[11px] text-ink-faint">
-            <PinIcon /> {item.location}
-          </span>
+      <div className="flex items-center justify-between gap-2">
+        <span className="flex min-w-0 flex-col gap-0.5">
+          {item.location && (
+            <span className="flex items-center gap-1 truncate text-[11px] text-ink-faint">
+              <PinIcon /> {item.location}
+            </span>
+          )}
+          {item.source && (
+            <span className="truncate text-[10px] font-semibold uppercase tracking-wide text-ink-faint">
+              via {item.source}
+            </span>
+          )}
+        </span>
+
+        {item.link ? (
+          <a
+            href={item.link}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="grad-primary shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold text-white active:scale-95"
+          >
+            {actionLabel}
+          </a>
         ) : (
-          <span />
+          <button className="grad-primary shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold text-white active:scale-95">
+            {actionLabel}
+          </button>
         )}
-        <button className="grad-primary rounded-full px-3.5 py-1.5 text-xs font-bold text-white active:scale-95">
-          {actionLabel}
-        </button>
       </div>
     </div>
   );

@@ -63,10 +63,12 @@ before first paint to avoid a flash, and syncs the native status bar.
 src/
   components/   Reusable UI (cards, nav, avatars, theme toggle…)
   screens/      One file per screen
-  services/     discoveryService · aiService · nlp · storageService
+  services/     discoveryService · aiService · apiClient · nlp · storageService
   store/        Zustand stores (app state, theme)
-  data/         Seed ecosystem dataset + categories
+  data/         Curated fallback dataset + categories
   types/        Domain models
+server/         Cloudflare Worker — the discovery API
+  src/sources/  One adapter per upstream source
 scripts/
   generate-icons.mjs   Generates launcher icons + splash screens
 android/        Capacitor native project
@@ -138,22 +140,51 @@ The APK lands in `android/app/build/outputs/apk/release/app-release.apk`.
 
 ---
 
-## Where real data and real AI plug in
+## Data
 
-The app ships fully self-contained and offline-capable. Two documented seams are
-where a production deployment swaps in live systems — the UI depends only on the
-returned shapes, so nothing else changes:
+Live results come from the **STARTVATE Discovery API** in [`server/`](server/) —
+a Cloudflare Worker that aggregates official sources in parallel:
 
-- **`src/services/discoveryService.ts` → `search()`**
-  Replace the ranked seed dataset with your aggregation backend (a search index
-  over LinkedIn / Crunchbase / YC / event & grant sources).
+| Source | Categories | Key needed |
+|---|---|---|
+| Y Combinator (`yc-oss/api`) | Startups | — |
+| GitHub REST API | Co-founders, resources | Optional |
+| Hacker News (Algolia) | News, communities | — |
+| OpenAlex | Mentors, experts | — |
+| Grants.gov | Grants | — |
+| Exa | Competitors, events, hackathons, incubators, investors | Required |
 
-- **`src/services/aiService.ts` → `generateInsight()` and `askAI()`**
-  Replace the heuristics with Claude API calls. The file contains a worked
-  `callLLM` example.
+See [`server/README.md`](server/README.md) for setup and deployment.
 
-  > Never ship a provider API key inside a mobile bundle — proxy the call
-  > through your own backend.
+**The app degrades honestly.** If the API is unreachable, returns nothing, or
+only some sources succeed, it falls back to the bundled curated dataset and
+shows a banner saying so — curated examples are never presented as live
+ecosystem data. That also means the app stays useful offline.
+
+Point the app at your deployed Worker before building the APK:
+
+```
+VITE_API_BASE_URL=https://startvate-api.YOUR-SUBDOMAIN.workers.dev
+```
+
+### A note on LinkedIn
+
+STARTVATE does **not** scrape LinkedIn. Scraping it violates their User
+Agreement, gets accounts banned, and — because it collects personal data on
+identifiable people — creates real GDPR/DPDP exposure for whoever ships it.
+
+The supported path is **"Sign in with LinkedIn" (OAuth)**, where a user
+voluntarily imports *their own* profile into their Builder Profile. That's
+permitted, consensual, and produces better data than scraping ever would.
+
+### AI insight
+
+`src/services/aiService.ts` generates the insight panel from the returned items
+using transparent heuristics, so it works with no API key and offline. To swap
+in a real model, the file contains a worked `callLLM` example.
+
+> Never ship a provider API key inside a mobile bundle — proxy it through the
+> Worker, which already holds secrets safely.
 
 ---
 

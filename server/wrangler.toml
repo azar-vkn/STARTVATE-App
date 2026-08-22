@@ -1,0 +1,36 @@
+name = "startvate-api"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+# ---------------------------------------------------------------------------
+# KV cache. Create the namespaces once, then paste the ids below:
+#
+#   npx wrangler kv namespace create CACHE
+#   npx wrangler kv namespace create CACHE --preview
+# ---------------------------------------------------------------------------
+[[kv_namespaces]]
+binding = "CACHE"
+id = "REPLACE_WITH_KV_ID"
+preview_id = "REPLACE_WITH_PREVIEW_KV_ID"
+
+[vars]
+# Sent to OpenAlex's "polite pool" for faster, prioritized service.
+CONTACT_EMAIL = "hello@startvate.app"
+
+# Browser origins allowed to call the API. The packaged Android app uses
+# https://localhost (Capacitor's default Android scheme).
+ALLOWED_ORIGINS = "capacitor://localhost,http://localhost,https://localhost,http://localhost:5173"
+
+# ---------------------------------------------------------------------------
+# Secrets — never put these in this file. Set them with:
+#
+#   npx wrangler secret put GITHUB_TOKEN      # optional: 60 -> 5000 req/hr
+#   npx wrangler secret put EXA_API_KEY       # optional: enables Exa lanes
+#   npx wrangler secret put ANTHROPIC_API_KEY # optional: LLM insight
+#
+# For local dev, put the same keys in server/.dev.vars (git-ignored).
+# ---------------------------------------------------------------------------
+
+[observability]
+enabled = true

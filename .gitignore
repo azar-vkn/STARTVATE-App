@@ -15,6 +15,13 @@ android/app/src/main/assets/capacitor.plugins.json
 # Local machine config — paths differ per developer
 android/local.properties
 
+# Local environment — may point at private endpoints
+.env
+.env.local
+server/.dev.vars
+server/.wrangler/
+server/node_modules/
+
 # SIGNING SECRETS — never commit these.
 # Losing the keystore means you can never update the app on Play Store,
 # so back it up somewhere safe and private.

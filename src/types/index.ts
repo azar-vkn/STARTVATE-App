@@ -43,10 +43,12 @@ export interface DiscoveryItem {
   location?: string;
   /** Optional metrics shown as small stat pills. */
   stats?: { label: string; value: string }[];
-  /** Where a "connect / view" action would deep-link in a real deployment. */
+  /** Canonical URL for this entity — opened by the card's action button. */
   link?: string;
   /** Populated at query time — how well this matched the search. 0..1 */
   relevance?: number;
+  /** Upstream provider (e.g. "Y Combinator", "GitHub") shown as attribution. */
+  source?: string;
 }
 
 /** The AI intelligence layer's structured read on a search. */
@@ -67,6 +69,14 @@ export interface DiscoveryResult {
   /** Category -> items, already ranked by relevance. */
   sections: { meta: CategoryMeta; items: DiscoveryItem[] }[];
   totalCount: number;
+  /**
+   * Set when results are not fully live — the app tells the user rather than
+   * silently presenting curated examples as real ecosystem data.
+   */
+  degraded?: {
+    reason: 'offline' | 'partial' | 'no-results' | 'not-configured';
+    message: string;
+  };
 }
 
 // ---------------------------------------------------------------------------
