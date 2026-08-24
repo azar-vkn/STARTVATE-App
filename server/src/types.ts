@@ -63,7 +63,7 @@ export interface Env {
   GITHUB_TOKEN?: string;
   /** Exa API key — powers semantic discovery of competitors/events/investors. */
   EXA_API_KEY?: string;
-  /** Optional: enables LLM-generated insight on /api/insight. */
+  /** Enables Ask AI (POST /api/ask). Without it that route returns 503. */
   ANTHROPIC_API_KEY?: string;
 
   // --- Vars (set in wrangler.toml) ---

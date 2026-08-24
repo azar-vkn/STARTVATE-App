@@ -44,6 +44,14 @@ interface Lane {
 
 const LANES: Lane[] = [
   {
+    // Without this lane nothing populates `founders`, and the category the app
+    // advertises first would never appear.
+    kind: 'founders',
+    query: (f) => `founder of a ${f} startup — profile, interview or announcement`,
+    results: 5,
+    subtitle: 'Founder',
+  },
+  {
     kind: 'startups',
     query: (f) => `startup company building ${f}`,
     results: 6,
