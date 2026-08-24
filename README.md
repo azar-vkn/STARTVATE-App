@@ -29,12 +29,13 @@ fit, which startups should you study, and what are your next steps.*
 
 ### Screens
 
-- **Discover** — the search bar at the center, plus trending searches, recent
-  searches and a story row of builders.
+- **Discover** — the search bar at the center, plus example searches, your
+  recent searches, and what each category will surface.
 - **Results** — AI insight panel followed by horizontally-scrolling category rails.
 - **Builder Feed** — posts typed by intent (idea, launch, looking-for-co-founder,
   hiring, progress, question, feedback, opportunity, showcase) with filtering.
-- **Ask AI** — secondary deep-guidance chat, for when search isn't enough.
+- **Ask AI** — secondary deep-guidance chat backed by Claude, for when search
+  isn't enough.
 - **Builder Profile** — skills, interests, startup & stage, what you're looking
   for, projects, portfolio, location and focus areas — plus appearance settings.
 
@@ -46,7 +47,27 @@ fit, which startups should you study, and what are your next steps.*
 - **Vite 5** build
 - **Tailwind CSS** with CSS-variable design tokens (light + dark)
 - **Zustand** state, persisted via **Capacitor Preferences**
+- **Supabase** — Google auth, profiles, posts, likes (Postgres + RLS)
+- **Cloudflare Workers + Hono** — the discovery API
 - **Capacitor 6** native shell → **Gradle** → Android APK
+
+## Accounts & data
+
+Sign in with **Google**, or tap *Explore without an account* to use the app
+anonymously. The two modes are:
+
+| | Signed in | Guest |
+|---|---|---|
+| Profile & posts | Synced to Supabase, visible to others | On-device only |
+| Likes | Shared counts | Local |
+| Discovery | Identical | Identical |
+
+Every table has Row Level Security: profiles and posts are publicly readable,
+but only ever writable by their owner.
+
+See [`supabase/README.md`](supabase/README.md) for schema and Google OAuth setup.
+Without Supabase credentials the app runs in guest mode and skips the login
+screen entirely — nothing breaks.
 
 ### Theming
 
@@ -65,10 +86,12 @@ src/
   screens/      One file per screen
   services/     discoveryService · aiService · apiClient · nlp · storageService
   store/        Zustand stores (app state, theme)
-  data/         Curated fallback dataset + categories
+  data/         Category definitions + blank profile default
   types/        Domain models
 server/         Cloudflare Worker — the discovery API
   src/sources/  One adapter per upstream source
+supabase/
+  migrations/   Schema, RLS policies, signup trigger
 scripts/
   generate-icons.mjs   Generates launcher icons + splash screens
 android/        Capacitor native project
@@ -156,10 +179,22 @@ a Cloudflare Worker that aggregates official sources in parallel:
 
 See [`server/README.md`](server/README.md) for setup and deployment.
 
-**The app degrades honestly.** If the API is unreachable, returns nothing, or
-only some sources succeed, it falls back to the bundled curated dataset and
-shows a banner saying so — curated examples are never presented as live
-ecosystem data. That also means the app stays useful offline.
+**There is no mock data anywhere in this app.** Every founder, company, mentor,
+grant and discussion shown is fetched live from the sources above and carries a
+`via <source>` attribution plus a working link.
+
+That is a deliberate product decision, not an omission. Invented results would
+be worse than none: a founder could waste real time chasing a company that does
+not exist or a grant that was never offered. So when live data is unavailable
+the app says so plainly and offers a retry — it never substitutes filler.
+
+| Situation | What the user sees |
+|---|---|
+| API unreachable | "Could not reach live data" + Retry |
+| No API configured | A clear message that this build has no API |
+| Some sources failed | Results, plus a banner naming what's missing |
+| Genuinely no matches | An empty state suggesting a broader query |
+| Feed with no posts | An invitation to write the first one |
 
 Point the app at your deployed Worker before building the APK:
 
@@ -177,14 +212,22 @@ The supported path is **"Sign in with LinkedIn" (OAuth)**, where a user
 voluntarily imports *their own* profile into their Builder Profile. That's
 permitted, consensual, and produces better data than scraping ever would.
 
-### AI insight
+### AI
 
-`src/services/aiService.ts` generates the insight panel from the returned items
-using transparent heuristics, so it works with no API key and offline. To swap
-in a real model, the file contains a worked `callLLM` example.
+Two distinct layers, deliberately:
 
-> Never ship a provider API key inside a mobile bundle — proxy it through the
-> Worker, which already holds secrets safely.
+**The insight panel** (`generateInsight`) is deterministic and runs on-device.
+It invents nothing — every name, opportunity and competitor it cites is drawn
+from the real items the search just returned. It summarises live data rather
+than generating claims about it, so it stays accurate and needs no API key.
+
+**Ask AI** is genuinely generative and calls Claude through `POST /api/ask` on
+the Worker. If no `ANTHROPIC_API_KEY` is set the endpoint returns 503 and the
+app shows an honest "not enabled yet" message — it never falls back to a canned
+reply dressed up as a real answer.
+
+> The Anthropic key lives only on the Worker. A provider key shipped inside an
+> APK is trivially extractable, so it must never be in the app bundle.
 
 ---
 

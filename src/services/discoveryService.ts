@@ -1,55 +1,30 @@
 import type { DiscoveryItem, DiscoveryResult } from '@/types';
-import { DISCOVERY_ITEMS } from '@/data/discoveryItems';
 import { CATEGORIES } from '@/data/categories';
-import { parseQuery, type ParsedQuery } from './nlp';
+import { parseQuery } from './nlp';
 import { generateInsight } from './aiService';
 import { searchApi, isApiConfigured, ApiUnavailableError } from './apiClient';
 
 // ============================================================================
 // Discovery engine.
 //
-// Live results come from the STARTVATE API, which aggregates official sources
-// (Y Combinator, GitHub, Hacker News, OpenAlex, Grants.gov and Exa). When the
-// API is unreachable — offline, not yet deployed, or degraded — we fall back to
-// the bundled seed dataset so the app always returns something useful, and
-// report that via `result.degraded`.
+// Every result comes from the STARTVATE API, which aggregates official sources
+// (Y Combinator, GitHub, Hacker News, OpenAlex, Grants.gov and Exa).
+//
+// There is deliberately NO local fallback dataset. Showing invented founders
+// and non-existent grants would be worse than showing nothing: a user could
+// waste real time chasing a company or funding round that does not exist.
+// When live data is unavailable the app says so plainly and offers a retry.
 // ============================================================================
 
-function scoreItem(item: DiscoveryItem, domains: string[], keywords: string[]): number {
-  let score = 0;
+/** Raised when the search could not be completed at all. */
+export class SearchUnavailableError extends Error {
+  readonly reason: 'not-configured' | 'offline';
 
-  const domainMatches = item.domains.filter((d) => domains.includes(d)).length;
-  score += domainMatches * 3;
-
-  // Covering every requested domain separates a true "AI + agriculture" match
-  // from something that merely happens to be AI.
-  if (domains.length > 1 && domainMatches === domains.length) score += 4;
-
-  const haystack = [item.title, item.subtitle, item.description, ...item.tags, ...item.domains]
-    .join(' ')
-    .toLowerCase();
-
-  for (const kw of keywords) {
-    if (haystack.includes(kw)) score += 1.5;
+  constructor(reason: 'not-configured' | 'offline', message: string) {
+    super(message);
+    this.name = 'SearchUnavailableError';
+    this.reason = reason;
   }
-
-  return score;
-}
-
-/** Rank the bundled dataset locally — used for the offline fallback path. */
-function rankLocal(parsed: ParsedQuery): DiscoveryItem[] {
-  const hasSignal = parsed.domains.length > 0 || parsed.keywords.length > 0;
-
-  const scored = DISCOVERY_ITEMS.map((item) => ({
-    item,
-    raw: scoreItem(item, parsed.domains, parsed.keywords),
-  }));
-  const maxScore = Math.max(1, ...scored.map((s) => s.raw));
-
-  return scored
-    .filter((s) => (hasSignal ? s.raw > 0 : true))
-    .map((s) => ({ ...s.item, relevance: Math.min(1, s.raw / maxScore) }))
-    .sort((a, b) => (b.relevance ?? 0) - (a.relevance ?? 0));
 }
 
 /**
@@ -67,56 +42,51 @@ function toSections(items: DiscoveryItem[]) {
 }
 
 export async function search(rawQuery: string): Promise<DiscoveryResult> {
+  if (!isApiConfigured()) {
+    throw new SearchUnavailableError(
+      'not-configured',
+      'This build has no discovery API configured, so there is nothing to search yet.',
+    );
+  }
+
   const parsed = parseQuery(rawQuery);
 
   let items: DiscoveryItem[];
-  let degraded: DiscoveryResult['degraded'];
+  let failedSources: string[];
 
-  if (isApiConfigured()) {
-    try {
-      const res = await searchApi(rawQuery);
-      items = res.items;
-
-      const failed = res.sources.filter((s) => !s.ok).map((s) => s.name);
-
-      // An empty live response is worse than showing the curated set.
-      if (items.length === 0) {
-        items = rankLocal(parsed);
-        degraded = { reason: 'no-results', message: 'No live results — showing curated examples.' };
-      } else if (failed.length > 0) {
-        degraded = {
-          reason: 'partial',
-          message: `Some sources are unavailable (${failed.join(', ')}).`,
-        };
-      }
-    } catch (err) {
-      items = rankLocal(parsed);
-      degraded = {
-        reason: 'offline',
-        message:
-          err instanceof ApiUnavailableError
-            ? 'Live data unavailable — showing curated examples.'
-            : 'Something went wrong reaching live data.',
-      };
-    }
-  } else {
-    items = rankLocal(parsed);
-    degraded = { reason: 'not-configured', message: 'Showing curated examples.' };
+  try {
+    const res = await searchApi(rawQuery);
+    items = res.items;
+    failedSources = res.sources.filter((s) => !s.ok).map((s) => s.name);
+  } catch (err) {
+    throw new SearchUnavailableError(
+      'offline',
+      err instanceof ApiUnavailableError
+        ? 'Could not reach live data. Check your connection and try again.'
+        : 'Something went wrong fetching live data.',
+    );
   }
 
   const sections = toSections(items);
-  const totalCount = sections.reduce((sum, s) => sum + s.items.length, 0);
 
   return {
     query: rawQuery.trim(),
     insight: generateInsight(parsed, items),
     sections,
-    totalCount,
-    degraded,
+    totalCount: sections.reduce((sum, s) => sum + s.items.length, 0),
+    // Only flag partial degradation — a fully successful but empty search is
+    // an honest "no results", handled by the empty state.
+    degraded:
+      failedSources.length > 0
+        ? {
+            reason: 'partial',
+            message: `Some sources are unavailable right now (${failedSources.join(', ')}), so results may be incomplete.`,
+          }
+        : undefined,
   };
 }
 
-/** Curated example searches shown on the Discover screen. */
+/** Example searches shown on the Discover screen. */
 export const TRENDING_SEARCHES = [
   'AI Agriculture Startup',
   'Fintech for emerging markets',

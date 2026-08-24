@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/store/appStore';
 import { PostCard } from '@/components/PostCard';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { EmptyState } from '@/components/EmptyState';
 import { POST_TYPE_META, POST_TYPES } from '@/lib/format';
 import type { PostType } from '@/types';
 
@@ -50,13 +51,30 @@ export function FeedScreen() {
         {visible.map((post) => (
           <PostCard key={post.id} post={post} onLike={toggleLike} />
         ))}
-        {visible.length === 0 && (
-          <p className="py-16 text-center text-sm text-ink-muted">
-            No{' '}
-            {filter === 'all' ? '' : POST_TYPE_META[filter as PostType].label.toLowerCase()} posts
-            yet.
-          </p>
-        )}
+        {visible.length === 0 &&
+          (filter === 'all' ? (
+            <EmptyState
+              icon="✍️"
+              title="The feed is yours to start"
+              subtitle="No posts yet. Share an idea, a launch, or what you're looking for — every post here should help someone build."
+              action={
+                <button className="btn-primary" onClick={() => navigate('/feed/new')}>
+                  Write the first post
+                </button>
+              }
+            />
+          ) : (
+            <EmptyState
+              icon="🔎"
+              title={`No ${POST_TYPE_META[filter as PostType].label.toLowerCase()} posts`}
+              subtitle="Nothing in this category yet. Try another filter, or post one yourself."
+              action={
+                <button className="btn-ghost" onClick={() => setFilter('all')}>
+                  Show all posts
+                </button>
+              }
+            />
+          ))}
       </div>
 
       {/* Floating compose button */}

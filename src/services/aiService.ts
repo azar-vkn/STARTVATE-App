@@ -1,41 +1,20 @@
 import type { AIInsight, DiscoveryItem, ChatMessage } from '@/types';
-import { type ParsedQuery, domainLabel, parseQuery } from './nlp';
+import { type ParsedQuery, domainLabel } from './nlp';
+import { askApi, type AskMessage } from './apiClient';
 
 // ============================================================================
 // AI intelligence layer.
 //
 // STARTVATE treats AI as a behind-the-scenes intelligence layer, not a chatbot.
-// `generateInsight` reads the search context + ranked results and produces the
-// structured "who to talk to / opportunities / next steps" guidance shown atop
-// the results screen. `askAI` powers the secondary deep-guidance feature.
 //
-// PRODUCTION SEAM ─────────────────────────────────────────────────────────────
-// Both functions below are pure + synchronous-friendly heuristics so the app is
-// fully self-contained and offline-capable. To wire real intelligence, implement
-// `callLLM` against the Claude Messages API (or your backend) and have these
-// functions await it. The rest of the app depends only on the returned shapes.
+// `generateInsight` is deterministic and runs on-device. It does NOT invent
+// anything: every name, opportunity and competitor it cites is taken from the
+// real items the discovery API just returned, so it stays accurate and works
+// without an API key. It summarises real data rather than generating claims.
 //
-//   async function callLLM(system: string, user: string): Promise<string> {
-//     const res = await fetch('https://api.anthropic.com/v1/messages', {
-//       method: 'POST',
-//       headers: {
-//         'x-api-key': import.meta.env.VITE_ANTHROPIC_API_KEY,
-//         'anthropic-version': '2023-06-01',
-//         'content-type': 'application/json',
-//       },
-//       body: JSON.stringify({
-//         model: 'claude-sonnet-5',
-//         max_tokens: 1024,
-//         system,
-//         messages: [{ role: 'user', content: user }],
-//       }),
-//     });
-//     const data = await res.json();
-//     return data.content?.[0]?.text ?? '';
-//   }
-//
-// NOTE: never ship a raw provider key in a mobile bundle — proxy through your
-// own backend. The seam is documented here so the swap is a localized change.
+// `askAI` is genuinely generative and calls Claude through the Worker, which
+// holds the API key. A provider key shipped inside an APK is trivially
+// extractable, so it must never live in this bundle.
 // ============================================================================
 
 function domainsPhrase(domains: string[]): string {
@@ -129,7 +108,11 @@ export function generateInsight(
 }
 
 // ---------------------------------------------------------------------------
-// Ask AI — deeper conversational guidance (secondary feature).
+// Ask AI — answered by Claude via the STARTVATE Worker.
+//
+// There is no local fallback. A templated reply dressed up as an AI answer
+// would be worse than an honest error: a founder could act on generic advice
+// believing it was reasoned about their situation.
 // ---------------------------------------------------------------------------
 
 export const ASK_AI_SUGGESTIONS = [
@@ -140,87 +123,15 @@ export const ASK_AI_SUGGESTIONS = [
   'How do I prepare for a pre-seed raise?',
 ];
 
-/** Heuristic guidance responder. Swap for `callLLM` at the production seam. */
+export { AskUnavailableError } from './apiClient';
+
 export async function askAI(
   question: string,
   history: ChatMessage[],
 ): Promise<string> {
-  await new Promise((r) => setTimeout(r, 650)); // simulate thinking
-  const q = question.toLowerCase();
-  const parsed = parseQuery(question);
-  const focus = parsed.domains.length ? domainsPhrase(parsed.domains) : 'your idea';
-
-  const intro =
-    history.length === 0
-      ? `Great question. Here's how I'd think about it for ${focus}:\n\n`
-      : '';
-
-  if (/(co-?founder|cofounder|partner|team)/.test(q)) {
-    return (
-      intro +
-      `Finding the right co-founder:\n\n` +
-      `1. Get specific — write down the exact skills you're missing (e.g. ML, GTM, design).\n` +
-      `2. Use STARTVATE's Discover tab and search your domain to see builders marked "available".\n` +
-      `3. Post a clear "looking-for-co-founder" note on the Builder Feed with your traction and ask.\n` +
-      `4. Do a paid trial project together before committing — chemistry and execution beat résumés.\n\n` +
-      `Tip: complementary skills + shared values + aligned ambition is the combination that lasts.`
-    );
-  }
-
-  if (/(validate|validation|idea|problem|pmf|product.?market)/.test(q)) {
-    return (
-      intro +
-      `Validating before you build:\n\n` +
-      `1. Write the problem in one sentence from the customer's point of view.\n` +
-      `2. Talk to 5–10 potential users this week — ask about their last real experience of the problem, not hypotheticals.\n` +
-      `3. Look at the "Similar Startups" your search surfaces — demand there is a signal you're onto something.\n` +
-      `4. Get a signal of willingness to pay (a pre-order, a pilot, a waitlist) before writing much code.\n\n` +
-      `You're looking for pull, not politeness.`
-    );
-  }
-
-  if (/(fund|funding|raise|investor|grant|money|capital|pre-?seed|seed)/.test(q)) {
-    return (
-      intro +
-      `On funding for ${focus}:\n\n` +
-      `• Non-dilutive first: check the Grants section in your search — it's free money that also de-risks you.\n` +
-      `• Angels & pre-seed: the Investors your search surfaces already back this space; warm intros beat cold ones.\n` +
-      `• Traction is leverage: even a small pilot or waitlist makes every conversation easier.\n` +
-      `• Raise for milestones, not vanity — enough to hit the next proof point plus buffer.\n\n` +
-      `Start by listing the 3 investors most relevant to your domain and finding a mutual connection.`
-    );
-  }
-
-  if (/(first|start|begin|next step|steps|roadmap|do next)/.test(q)) {
-    return (
-      intro +
-      `A simple first-30-days plan:\n\n` +
-      `Week 1 — Sharpen the problem & talk to 5 users.\n` +
-      `Week 2 — Study 3 similar startups; define your wedge.\n` +
-      `Week 3 — Build the scrappiest possible prototype.\n` +
-      `Week 4 — Put it in front of real users; line up a hackathon or grant for momentum.\n\n` +
-      `Use Discover to find the people and opportunities for each step, and post progress to the Feed for accountability.`
-    );
-  }
-
-  if (/(market|competitor|competition|differentiat)/.test(q)) {
-    return (
-      intro +
-      `Understanding your market:\n\n` +
-      `1. Search your domain and open "Similar Startups & Competitors".\n` +
-      `2. For each, note who they serve and what they *don't* do well — that gap is your wedge.\n` +
-      `3. Position around a specific user and a sharp job-to-be-done rather than a broad category.\n\n` +
-      `A crowded market is often validation; an empty one is often a warning.`
-    );
-  }
-
-  // Generic fallback — still useful and on-brand.
-  return (
-    intro +
-    `Here's how I'd approach that:\n\n` +
-    `1. Get concrete about the outcome you want and the single biggest unknown right now.\n` +
-    `2. Use Discover to find the people, competitors and opportunities tied to ${focus}.\n` +
-    `3. Take one small, reversible step this week and post what you learn to the Feed.\n\n` +
-    `Ask me to go deeper on co-founders, validation, funding, or your first steps — I can get specific.`
-  );
+  const conversation: AskMessage[] = history.map((m) => ({
+    role: m.role,
+    content: m.content,
+  }));
+  return askApi(question, conversation);
 }

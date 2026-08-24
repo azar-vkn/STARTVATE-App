@@ -141,7 +141,7 @@ export function EditProfileScreen() {
             className="input"
             value={draft.headline}
             onChange={(e) => set('headline', e.target.value)}
-            placeholder="e.g. Founder, TerraSense · Agri AI"
+            placeholder="e.g. Founder · Climate tech"
           />
         </Field>
 

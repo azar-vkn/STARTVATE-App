@@ -13,6 +13,7 @@ import { hackerNewsSource } from './sources/hackernews';
 import { openAlexSource } from './sources/openalex';
 import { grantsSource } from './sources/grants';
 import { exaSource } from './sources/exa';
+import { callClaude, claudeConfigured, ADVISOR_SYSTEM, ClaudeUnavailableError } from './claude';
 
 // ============================================================================
 // STARTVATE discovery API.
@@ -76,7 +77,76 @@ app.get('/api/health', (c) => {
     name: s.name,
     enabled: s.enabled ? s.enabled(c.env) : true,
   }));
-  return c.json({ ok: true, sources: status, time: Date.now() });
+  return c.json({
+    ok: true,
+    sources: status,
+    ask: claudeConfigured(c.env),
+    time: Date.now(),
+  });
+});
+
+/**
+ * Ask AI — deeper conversational guidance, answered by Claude.
+ *
+ * Returns 503 when no key is configured rather than inventing a canned reply:
+ * the app would otherwise present a template as if it were a real answer.
+ */
+app.post('/api/ask', async (c) => {
+  if (!claudeConfigured(c.env)) {
+    return c.json(
+      { error: 'Ask AI is not configured on this deployment.', code: 'not-configured' },
+      503,
+    );
+  }
+
+  let body: { question?: unknown; history?: unknown };
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: 'Invalid JSON body.' }, 400);
+  }
+
+  const question = typeof body.question === 'string' ? body.question.trim() : '';
+  if (!question) return c.json({ error: 'Missing "question".' }, 400);
+  if (question.length > 2000) return c.json({ error: 'Question too long.' }, 400);
+
+  // Trust only the shape, not the contents: cap how much history we replay.
+  const history = Array.isArray(body.history)
+    ? body.history
+        .filter(
+          (m): m is { role: 'user' | 'assistant'; content: string } =>
+            !!m &&
+            typeof m === 'object' &&
+            (m as { role?: unknown }).role !== undefined &&
+            ((m as { role: unknown }).role === 'user' ||
+              (m as { role: unknown }).role === 'assistant') &&
+            typeof (m as { content?: unknown }).content === 'string',
+        )
+        .slice(-8)
+        .map((m) => ({ role: m.role, content: m.content.slice(0, 4000) }))
+    : [];
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 30000);
+
+  try {
+    const answer = await callClaude(
+      c.env,
+      ADVISOR_SYSTEM,
+      [...history, { role: 'user' as const, content: question }],
+      controller.signal,
+    );
+    return c.json({ answer, model: 'claude-sonnet-5' });
+  } catch (err) {
+    console.error('[ask] failed', err);
+    const message =
+      err instanceof ClaudeUnavailableError
+        ? 'Ask AI is temporarily unavailable.'
+        : 'Ask AI request failed.';
+    return c.json({ error: message, code: 'upstream' }, 502);
+  } finally {
+    clearTimeout(timer);
+  }
 });
 
 app.get('/api/search', async (c) => {

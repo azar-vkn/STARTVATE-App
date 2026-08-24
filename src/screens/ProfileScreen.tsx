@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/store/appStore';
+import { useAuth } from '@/store/authStore';
+import { isSupabaseEnabled } from '@/services/supabase';
 import { Avatar } from '@/components/Avatar';
 import { ThemeSegmented } from '@/components/ThemeToggle';
-import { EXAMPLE_PROFILE } from '@/data/seed';
 import { STAGE_META, LOOKING_FOR_META } from '@/lib/format';
 import { domainLabel } from '@/services/nlp';
 import type { BuilderProfile } from '@/types';
@@ -13,7 +14,6 @@ type Tab = 'about' | 'projects' | 'settings';
 export function ProfileScreen() {
   const navigate = useNavigate();
   const profile = useApp((s) => s.profile);
-  const saveProfile = useApp((s) => s.saveProfile);
   const posts = useApp((s) => s.posts);
   const [tab, setTab] = useState<Tab>('about');
 
@@ -50,7 +50,9 @@ export function ProfileScreen() {
         </div>
         <h2 className="mt-3 text-xl font-extrabold text-ink">{profile.name}</h2>
         <p className="mt-0.5 text-center text-sm text-ink-muted">{profile.headline}</p>
-        <p className="mt-1 text-xs text-ink-faint">📍 {profile.location}</p>
+        {profile.location && (
+          <p className="mt-1 text-xs text-ink-faint">📍 {profile.location}</p>
+        )}
 
         {/* Stats row */}
         <div className="mt-5 flex w-full items-center justify-around">
@@ -92,10 +94,7 @@ export function ProfileScreen() {
       <div className="px-4 pt-5">
         {tab === 'about' &&
           (isEmpty ? (
-            <SetupPrompt
-              onFillExample={() => saveProfile({ ...EXAMPLE_PROFILE, id: 'me' })}
-              onEdit={() => navigate('/profile/edit')}
-            />
+            <SetupPrompt onEdit={() => navigate('/profile/edit')} />
           ) : (
             <AboutTab profile={profile} />
           ))}
@@ -214,6 +213,13 @@ function ProjectsTab({ profile, onEdit }: { profile: BuilderProfile; onEdit: () 
 }
 
 function SettingsTab() {
+  const status = useAuth((s) => s.status);
+  const email = useAuth((s) => s.user?.email ?? null);
+  const logout = useAuth((s) => s.logout);
+  const signIn = useAuth((s) => s.signIn);
+  const signingIn = useAuth((s) => s.signingIn);
+  const mode = useApp((s) => s.mode);
+
   return (
     <div className="space-y-5">
       <div>
@@ -224,9 +230,40 @@ function SettingsTab() {
         </p>
       </div>
 
+      <div>
+        <p className="label">Account</p>
+        <div className="card divide-y divide-hair/[0.05]">
+          <Row
+            label={status === 'authed' ? 'Signed in' : 'Not signed in'}
+            value={email ?? 'Guest'}
+          />
+          <Row
+            label="Sync"
+            value={mode === 'remote' ? 'Cloud' : 'This device only'}
+          />
+        </div>
+
+        {status === 'authed' ? (
+          <button className="btn-ghost mt-3 w-full" onClick={logout}>
+            Sign out
+          </button>
+        ) : (
+          isSupabaseEnabled && (
+            <>
+              <button className="btn-primary mt-3 w-full" onClick={signIn} disabled={signingIn}>
+                {signingIn ? 'Signing in…' : 'Sign in with Google'}
+              </button>
+              <p className="mt-2 text-[12px] leading-relaxed text-ink-faint">
+                Sign in to sync your profile and posts, and to be discoverable by
+                other builders.
+              </p>
+            </>
+          )
+        )}
+      </div>
+
       <div className="card divide-y divide-hair/[0.05]">
-        <Row label="Version" value="1.0.0" />
-        <Row label="Storage" value="On device" />
+        <Row label="Version" value="1.3.0" />
       </div>
 
       <p className="px-1 text-center text-[11px] leading-relaxed text-ink-faint">
@@ -245,13 +282,7 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-function SetupPrompt({
-  onFillExample,
-  onEdit,
-}: {
-  onFillExample: () => void;
-  onEdit: () => void;
-}) {
+function SetupPrompt({ onEdit }: { onEdit: () => void }) {
   return (
     <div>
       <div className="card p-6 text-center">
@@ -265,12 +296,6 @@ function SetupPrompt({
         </p>
         <button className="btn-primary mt-5 w-full" onClick={onEdit}>
           Build my profile
-        </button>
-        <button
-          className="mt-3 w-full text-xs font-bold text-ink-faint active:text-ink"
-          onClick={onFillExample}
-        >
-          Load an example profile to explore
         </button>
       </div>
 

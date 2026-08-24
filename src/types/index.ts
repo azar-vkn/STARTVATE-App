@@ -1,8 +1,8 @@
 // ============================================================================
 // STARTVATE — core domain models
 // These types describe the startup ecosystem entities the platform surfaces.
-// The discovery + AI services return these shapes, so swapping the mock engine
-// for a real backend later only means re-implementing the services, not the UI.
+// The discovery + AI services return these shapes. All data is live: it comes
+// from the STARTVATE API, which aggregates official sources.
 // ============================================================================
 
 /** The category buckets a discovery search is organized into. */
@@ -70,11 +70,11 @@ export interface DiscoveryResult {
   sections: { meta: CategoryMeta; items: DiscoveryItem[] }[];
   totalCount: number;
   /**
-   * Set when results are not fully live — the app tells the user rather than
-   * silently presenting curated examples as real ecosystem data.
+   * Set when some upstream sources failed, so the user is told results are
+   * incomplete instead of assuming they saw everything available.
    */
   degraded?: {
-    reason: 'offline' | 'partial' | 'no-results' | 'not-configured';
+    reason: 'partial';
     message: string;
   };
 }

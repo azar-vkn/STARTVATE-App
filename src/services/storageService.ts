@@ -58,4 +58,5 @@ export const STORAGE_KEYS = {
   recentSearches: 'startvate.recentSearches',
   chat: 'startvate.chat',
   onboarded: 'startvate.onboarded',
+  guestChosen: 'startvate.guestChosen',
 } as const;

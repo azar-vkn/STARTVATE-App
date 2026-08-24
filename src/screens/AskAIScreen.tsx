@@ -10,31 +10,55 @@ export function AskAIScreen() {
   const resetChat = useApp((s) => s.resetChat);
   const [input, setInput] = useState('');
   const [thinking, setThinking] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // Holds a failed turn so "Try again" can re-send it without duplicating the
+  // user's message, which is already in the transcript.
+  const [retry, setRetry] = useState<{ question: string; prior: ChatMessage[] } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
-  }, [chat, thinking]);
+  }, [chat, thinking, error]);
+
+  /** Calls the model for a question whose user message is already shown. */
+  const deliver = async (question: string, prior: ChatMessage[]) => {
+    setThinking(true);
+    setError(null);
+    try {
+      const reply = await askAI(question, prior);
+      await pushChat({
+        id: `a-${Date.now()}`,
+        role: 'assistant',
+        content: reply,
+        createdAt: Date.now(),
+      });
+      setRetry(null);
+    } catch (err) {
+      console.error('[ask] failed', err);
+      setError(err instanceof Error ? err.message : 'Ask AI is unavailable right now.');
+      setRetry({ question, prior });
+    } finally {
+      setThinking(false);
+    }
+  };
 
   const send = async (text: string) => {
     const content = text.trim();
     if (!content || thinking) return;
+
     setInput('');
+    // Snapshot history *before* this turn — the API takes prior context and
+    // the new question separately.
+    const prior = chat;
+
     await pushChat({
       id: `u-${Date.now()}`,
       role: 'user',
       content,
       createdAt: Date.now(),
     });
-    setThinking(true);
-    const reply = await askAI(content, chat);
-    await pushChat({
-      id: `a-${Date.now()}`,
-      role: 'assistant',
-      content: reply,
-      createdAt: Date.now(),
-    });
-    setThinking(false);
+
+    await deliver(content, prior);
   };
 
   return (
@@ -89,6 +113,23 @@ export function AskAIScreen() {
         {chat.map((m) => (
           <Bubble key={m.id} message={m} />
         ))}
+
+        {error && !thinking && (
+          <div className="flex items-start gap-2.5 rounded-3xl border border-rose/30 bg-rose/10 px-4 py-3">
+            <span className="text-sm">⚠️</span>
+            <div className="flex-1">
+              <p className="text-[13px] leading-relaxed text-ink">{error}</p>
+              {retry && (
+                <button
+                  onClick={() => void deliver(retry.question, retry.prior)}
+                  className="mt-1.5 text-xs font-bold text-primary"
+                >
+                  Try again
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         {thinking && (
           <div className="flex items-center gap-2">

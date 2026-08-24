@@ -8,16 +8,6 @@ import { TRENDING_SEARCHES } from '@/services/discoveryService';
 import { CATEGORIES } from '@/data/categories';
 import { ACCENT_BG } from '@/lib/format';
 
-// Story-row builders — the "people currently building" strip from the design.
-const STORY_BUILDERS = [
-  { name: 'You', seed: 'brand', query: '' },
-  { name: 'Aarav', seed: 'accent', query: 'AI Agriculture Startup' },
-  { name: 'Lena', seed: 'sky', query: 'Satellite crop analytics' },
-  { name: 'Diego', seed: 'rose', query: 'Fintech for emerging markets' },
-  { name: 'Priya', seed: 'amber', query: 'Health monitoring wearables' },
-  { name: 'Marcus', seed: 'brand', query: 'Climate battery software' },
-];
-
 export function DiscoverScreen() {
   const navigate = useNavigate();
   const doSearch = useApp((s) => s.doSearch);
@@ -56,27 +46,6 @@ export function DiscoverScreen() {
       {/* Search */}
       <div className="mt-6 px-4">
         <SearchBar onSubmit={go} />
-      </div>
-
-      {/* Story row — builders in the ecosystem */}
-      <div className="mt-6">
-        <div className="no-scrollbar flex gap-4 overflow-x-auto px-4 pb-1">
-          {STORY_BUILDERS.map((b) => (
-            <button
-              key={b.name}
-              onClick={() => (b.query ? go(b.query) : navigate('/profile'))}
-              className="flex w-16 shrink-0 flex-col items-center gap-1.5 active:scale-95"
-            >
-              <Avatar
-                name={b.name === 'You' ? profile.name : b.name}
-                seed={b.seed}
-                size={54}
-                storyRing
-              />
-              <span className="truncate text-[11px] font-semibold text-ink-muted">{b.name}</span>
-            </button>
-          ))}
-        </div>
       </div>
 
       {/* Trending */}

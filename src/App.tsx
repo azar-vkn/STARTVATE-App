@@ -1,10 +1,11 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { HashRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { App as CapApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 import { SplashScreen } from '@capacitor/splash-screen';
 
 import { useApp } from '@/store/appStore';
+import { useAuth } from '@/store/authStore';
 import { useTheme } from '@/store/themeStore';
 import { BottomNav } from '@/components/BottomNav';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -18,6 +19,7 @@ import { AskAIScreen } from '@/screens/AskAIScreen';
 import { ProfileScreen } from '@/screens/ProfileScreen';
 import { EditProfileScreen } from '@/screens/EditProfileScreen';
 import { OnboardingScreen } from '@/screens/OnboardingScreen';
+import { LoginScreen } from '@/screens/LoginScreen';
 
 // Routes that render their own full-height layout without the tab bar.
 const FULLSCREEN_ROUTES = ['/feed/new', '/profile/edit'];
@@ -44,13 +46,13 @@ function Shell() {
     };
   }, [location.pathname, navigate]);
 
-  // Scroll to top on route change.
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [location.pathname]);
 
   return (
     <>
+      <SyncErrorToast />
       <Routes>
         <Route path="/" element={<DiscoverScreen />} />
         <Route path="/results" element={<ResultsScreen />} />
@@ -70,19 +72,54 @@ export default function App() {
   const hydrated = useApp((s) => s.hydrated);
   const onboarded = useApp((s) => s.onboarded);
   const hydrate = useApp((s) => s.hydrate);
-  const initTheme = useTheme((s) => s.init);
 
+  const authStatus = useAuth((s) => s.status);
+  const guestChosen = useAuth((s) => s.guestChosen);
+  const userId = useAuth((s) => s.user?.id ?? null);
+  const initAuth = useAuth((s) => s.init);
+
+  const initTheme = useTheme((s) => s.init);
+  const [authReady, setAuthReady] = useState(false);
+
+  // Theme first so the very first paint is already correct.
   useEffect(() => {
     initTheme();
-    hydrate();
-  }, [initTheme, hydrate]);
+  }, [initTheme]);
 
-  // Hide the native splash once the app has hydrated.
+  useEffect(() => {
+    let dispose: (() => void) | undefined;
+    initAuth()
+      .then((d) => {
+        dispose = d;
+      })
+      .catch((err) => console.error('[auth] init failed', err))
+      .finally(() => setAuthReady(true));
+    return () => dispose?.();
+  }, [initAuth]);
+
+  // Re-hydrate whenever the signed-in identity changes, so signing in or out
+  // swaps between the remote and local datasets cleanly.
+  useEffect(() => {
+    if (!authReady || authStatus === 'loading') return;
+    hydrate(userId);
+  }, [authReady, authStatus, userId, hydrate]);
+
   useEffect(() => {
     if (hydrated && Capacitor.isNativePlatform()) {
       SplashScreen.hide().catch(() => {});
     }
   }, [hydrated]);
+
+  if (!authReady || authStatus === 'loading') return <BootScreen />;
+
+  // Gate order: sign in → onboarding → app.
+  if (authStatus === 'guest' && !guestChosen) {
+    return (
+      <ErrorBoundary>
+        <LoginScreen />
+      </ErrorBoundary>
+    );
+  }
 
   if (!hydrated) return <BootScreen />;
 
@@ -96,6 +133,25 @@ export default function App() {
         <OnboardingScreen />
       )}
     </ErrorBoundary>
+  );
+}
+
+/** Non-blocking banner for failed background syncs. */
+function SyncErrorToast() {
+  const syncError = useApp((s) => s.syncError);
+  const clear = useApp((s) => s.clearSyncError);
+  if (!syncError) return null;
+
+  return (
+    <div className="safe-top fixed inset-x-0 top-0 z-50 px-4">
+      <div className="mx-auto flex max-w-lg items-start gap-2 rounded-2xl border border-rose/30 bg-rose/15 px-4 py-3 backdrop-blur-lg">
+        <span className="text-sm">⚠️</span>
+        <p className="flex-1 text-[12.5px] leading-relaxed text-ink">{syncError}</p>
+        <button onClick={clear} className="text-xs font-bold text-ink-faint" aria-label="Dismiss">
+          ✕
+        </button>
+      </div>
+    </div>
   );
 }
 

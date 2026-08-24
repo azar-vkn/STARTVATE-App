@@ -22,6 +22,20 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!--
+                OAuth callback. Google refuses sign-in inside embedded WebViews,
+                so the flow runs in the system browser and returns here via
+                com.startvate.app://auth/callback. launchMode="singleTask" above
+                means this arrives as onNewIntent on the existing activity,
+                which Capacitor forwards to the appUrlOpen listener.
+            -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="com.startvate.app" android:host="auth" />
+            </intent-filter>
+
         </activity>
 
         <provider

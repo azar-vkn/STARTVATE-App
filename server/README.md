@@ -26,9 +26,14 @@ exposure), Crunchbase (no free tier), Eventbrite (public search removed in
 ## Endpoints
 
 ```
-GET /api/health          → which sources are enabled
-GET /api/search?q=...    → { query, domains, items[], sources[], generatedAt }
+GET  /api/health          → which sources are enabled, and whether Ask AI is on
+GET  /api/search?q=...    → { query, domains, items[], sources[], generatedAt }
+POST /api/ask             → { answer } — Claude-backed guidance
 ```
+
+`/api/ask` takes `{ question, history[] }` and returns **503** with
+`code: "not-configured"` when `ANTHROPIC_API_KEY` is unset, so the app can say
+Ask AI isn't enabled rather than inventing a reply.
 
 `sources[]` reports per-source `ok`, `count`, `ms`, `cached` and `error`, so the
 app can tell the user exactly what's degraded instead of guessing.
@@ -76,6 +81,10 @@ npx wrangler secret put GITHUB_TOKEN
 
 ```bash
 npx wrangler secret put EXA_API_KEY
+```
+
+```bash
+npx wrangler secret put ANTHROPIC_API_KEY
 ```
 
 Deploy:
