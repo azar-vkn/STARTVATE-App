@@ -12,12 +12,15 @@ skipped. Nothing breaks; it just isn't synced or shared.
 ## 1. Create the project
 
 1. Create a project at [supabase.com/dashboard](https://supabase.com/dashboard).
-2. Note your **Project URL** and **anon / publishable key** from
-   *Project Settings → API*.
+2. Note your **Project URL** and **publishable key** from
+   *Project Settings → API*. Supabase shows this as either the legacy `anon`
+   JWT (`eyJ...`) or the newer `sb_publishable_...` format — `supabase-js`
+   accepts both, so use whichever your project displays.
 
-> Ship only the **anon** key. It is public by design and safe precisely because
-> Row Level Security governs every table. **Never** put the `service_role` key
-> in the app — it bypasses RLS entirely and would expose every user's data.
+> Ship only the publishable key. It is public by design and safe precisely
+> because Row Level Security governs every table. **Never** put the
+> `service_role` / secret key in the app — it bypasses RLS entirely and would
+> expose every user's data to anyone who unzips the APK.
 
 ## 2. Create the schema
 
