@@ -263,7 +263,7 @@ function SettingsTab() {
       </div>
 
       <div className="card divide-y divide-hair/[0.05]">
-        <Row label="Version" value="1.3.1" />
+        <Row label="Version" value="1.4.0" />
       </div>
 
       <p className="px-1 text-center text-[11px] leading-relaxed text-ink-faint">

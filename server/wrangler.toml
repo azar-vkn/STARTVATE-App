@@ -16,7 +16,7 @@ preview_id = "491acfde2287462ea8e35d90bc291264"
 
 [vars]
 # Sent to OpenAlex's "polite pool" for faster, prioritized service.
-CONTACT_EMAIL = "hello@startvate.app"
+CONTACT_EMAIL = "startvate@gmail.com"
 
 # Browser origins allowed to call the API. The packaged Android app uses
 # https://localhost (Capacitor's default Android scheme).

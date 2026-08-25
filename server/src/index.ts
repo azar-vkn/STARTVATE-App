@@ -10,7 +10,7 @@ import { rank } from './rank';
 import { githubSource } from './sources/github';
 import { ycSource } from './sources/ycombinator';
 import { hackerNewsSource } from './sources/hackernews';
-import { openAlexSource } from './sources/openalex';
+import { scholarSource } from './sources/scholar';
 import { grantsSource } from './sources/grants';
 import { exaSource } from './sources/exa';
 import { callClaude, claudeConfigured, ADVISOR_SYSTEM, ClaudeUnavailableError } from './claude';
@@ -27,7 +27,7 @@ const SOURCES: Source[] = [
   ycSource,
   githubSource,
   hackerNewsSource,
-  openAlexSource,
+  scholarSource,
   grantsSource,
   exaSource,
 ];
