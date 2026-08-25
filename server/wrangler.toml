@@ -11,8 +11,8 @@ compatibility_flags = ["nodejs_compat"]
 # ---------------------------------------------------------------------------
 [[kv_namespaces]]
 binding = "CACHE"
-id = "REPLACE_WITH_KV_ID"
-preview_id = "REPLACE_WITH_PREVIEW_KV_ID"
+id = "1b90aa3e10b343c184dd95c130f41fe8"
+preview_id = "491acfde2287462ea8e35d90bc291264"
 
 [vars]
 # Sent to OpenAlex's "polite pool" for faster, prioritized service.
