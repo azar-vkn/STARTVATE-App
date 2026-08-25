@@ -40,6 +40,11 @@ app can tell the user exactly what's degraded instead of guessing.
 
 ## Local development
 
+> **On Windows PowerShell**, run each command on its own line. PowerShell 5.1
+> has no `&&` operator — chaining with it fails with
+> `The token '&&' is not a valid statement separator`. Use `;` to chain
+> unconditionally, or just run the lines separately.
+
 ```bash
 npm install
 ```
